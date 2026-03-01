@@ -1,0 +1,2 @@
+saved_scam_model/*.safetensors filter=lfs diff=lfs merge=lfs -text
+saved_scam_model/*.bin filter=lfs diff=lfs merge=lfs -text

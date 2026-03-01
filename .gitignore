@@ -14,6 +14,6 @@ venv.bak/
 # Large files
 *.exe
 *.torrent
-saved_scam_model/
+# saved_scam_model/ — tracked via Git LFS, do not ignore
 scam_model_output/
 *.csv
