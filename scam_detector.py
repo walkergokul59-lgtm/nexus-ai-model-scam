@@ -165,16 +165,19 @@ def train(data_path: str):
 # ─────────────────────────────────────────────
 class ScamPredictor:
     def __init__(self):
-        if not os.path.exists(MODEL_DIR):
-            raise FileNotFoundError(
-                f"Model not found at {MODEL_DIR}. Train the model first using --mode train"
-            )
+        # Check if saved model exists, otherwise fall back to base model
+        if os.path.exists(MODEL_DIR):
+            print(f"✅ Loading custom model from {MODEL_DIR}")
+            load_path = MODEL_DIR
+        else:
+            print(f"⚠️ Custom model not found. Using base model: {BASE_MODEL}")
+            load_path = BASE_MODEL
+            
         self.device    = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.tokenizer = DistilBertTokenizer.from_pretrained(MODEL_DIR)
-        self.model     = DistilBertForSequenceClassification.from_pretrained(MODEL_DIR)
+        self.tokenizer = DistilBertTokenizer.from_pretrained(load_path)
+        self.model     = DistilBertForSequenceClassification.from_pretrained(load_path)
         self.model     = self.model.to(self.device)
         self.model.eval()
-        print(f"✅ Model loaded from {MODEL_DIR}")
 
     def predict(self, text: str) -> dict:
         inputs = self.tokenizer(
@@ -196,50 +199,47 @@ class ScamPredictor:
             "legit_prob"  : round(float(probs[0]) * 100, 2),
         }
 
+# ─────────────────────────────────────────────
+# FASTAPI — GLOBAL INSTANCE FOR RENDER/PRODUCTION
+# ─────────────────────────────────────────────
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
-# ─────────────────────────────────────────────
-# FASTAPI — for website backend
-# ─────────────────────────────────────────────
+app = FastAPI(title="Nexus AI Scam Detector API", version="1.0.0")
+predictor = None # Initialize only when needed to save memory
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class MessageRequest(BaseModel):
+    text: str
+
+@app.get("/")
+def root():
+    return {"message": "Nexus AI Scam Detector API is running ✅"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.post("/predict")
+def predict(request: MessageRequest):
+    global predictor
+    if predictor is None:
+        predictor = ScamPredictor()
+    
+    if not request.text.strip():
+        return {"error": "Empty message provided"}
+    return predictor.predict(request.text)
+
 def run_api():
-    try:
-        from fastapi import FastAPI
-        from fastapi.middleware.cors import CORSMiddleware
-        from pydantic import BaseModel
-        import uvicorn
-    except ImportError:
-        print("❌ FastAPI not installed. Run: pip install fastapi uvicorn pydantic")
-        return
-
-    app       = FastAPI(title="Scam Detector API", version="1.0.0")
-    predictor = ScamPredictor()
-
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],   # restrict to your frontend domain in production
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-    class MessageRequest(BaseModel):
-        text: str
-
-    @app.get("/")
-    def root():
-        return {"message": "Scam Detector API is running ✅"}
-
-    @app.get("/health")
-    def health():
-        return {"status": "ok"}
-
-    @app.post("/predict")
-    def predict(request: MessageRequest):
-        if not request.text.strip():
-            return {"error": "Empty message provided"}
-        result = predictor.predict(request.text)
-        return result
-
+    import uvicorn
     print("\n🌐 API running at http://localhost:8000")
-    print("📖 Docs at       http://localhost:8000/docs\n")
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 

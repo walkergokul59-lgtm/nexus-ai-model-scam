@@ -1,83 +1,661 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Scam Detector</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScamDetect — SMS Scam Analyser</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    /* ── Reset ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Design tokens ──────────────────────────────────────────────── */
+    :root {
+      --bg:            #0d0f1a;
+      --surface:       #151823;
+      --surface-2:     #1e2235;
+      --border:        #272b40;
+      --text:          #e4e6f3;
+      --text-muted:    #6b7099;
+      --accent:        #6c63ff;
+      --accent-light:  #a78bfa;
+      --accent-glow:   rgba(108, 99, 255, 0.22);
+
+      --scam-bg:       rgba(192, 57, 43, 0.12);
+      --scam-border:   #c0392b;
+      --scam-text:     #ff7675;
+      --scam-badge-bg: #c0392b;
+
+      --legit-bg:      rgba(39, 174, 96, 0.10);
+      --legit-border:  #27ae60;
+      --legit-text:    #55efc4;
+      --legit-badge-bg:#27ae60;
+
+      --radius:        14px;
+      --radius-sm:     9px;
+      --ease:          0.22s ease;
+    }
+
+    /* ── Global ─────────────────────────────────────────────────────── */
+    html { height: 100%; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 56px 16px 80px;
+      /* Subtle radial glow in the background */
+      background-image:
+        radial-gradient(ellipse 60% 40% at 50% 0%, rgba(108,99,255,0.08) 0%, transparent 70%);
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    .page-header {
+      text-align: center;
+      margin-bottom: 44px;
+      max-width: 540px;
+    }
+
+    .logo-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 13px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: 0 4px 24px var(--accent-glow);
+      flex-shrink: 0;
+    }
+
+    .logo-name {
+      font-size: 1.9rem;
+      font-weight: 700;
+      letter-spacing: -0.6px;
+      background: linear-gradient(130deg, #e4e6f3 30%, var(--accent-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .tagline {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+      margin-bottom: 12px;
+    }
+
+    .sms-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 14px;
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      letter-spacing: 0.4px;
+    }
+
+    .sms-badge::before {
+      content: '📱';
+      font-size: 0.8rem;
+    }
+
+    /* ── Main card ──────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 30px;
+      width: 100%;
+      max-width: 660px;
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
+    }
+
+    /* ── Form ───────────────────────────────────────────────────────── */
+    .field-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      color: var(--text-muted);
+      margin-bottom: 9px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 148px;
+      resize: vertical;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.94rem;
+      line-height: 1.65;
+      padding: 14px 16px;
+      outline: none;
+      transition: border-color var(--ease), box-shadow var(--ease);
+    }
+
+    textarea::placeholder {
+      color: var(--text-muted);
+      opacity: 0.55;
+    }
+
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 7px;
+    }
+
+    .hint {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .char-count {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    /* ── Button ─────────────────────────────────────────────────────── */
+    .btn-primary {
+      margin-top: 18px;
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--accent), var(--accent-light));
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 4px 20px var(--accent-glow);
+      transition: opacity var(--ease), transform var(--ease), box-shadow var(--ease);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      opacity: 0.88;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 30px var(--accent-glow);
+    }
+
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    /* ── Spinner ────────────────────────────────────────────────────── */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      display: none;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error box ──────────────────────────────────────────────────── */
+    .error-box {
+      margin-top: 16px;
+      background: rgba(192, 57, 43, 0.1);
+      border: 1px solid rgba(192, 57, 43, 0.5);
+      border-radius: var(--radius-sm);
+      padding: 13px 16px;
+      font-size: 0.84rem;
+      color: #ff8a80;
+      line-height: 1.55;
+      display: none;
+      animation: fadeUp 0.28s ease;
+    }
+
+    .error-box b {
+      display: block;
+      margin-bottom: 2px;
+      font-weight: 600;
+    }
+
+    /* ── Result section ─────────────────────────────────────────────── */
+    #result-section {
+      display: none;
+      margin-top: 24px;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin-bottom: 24px;
+    }
+
+    .result-card {
+      border-radius: var(--radius-sm);
+      border: 1px solid;
+      padding: 24px;
+      animation: fadeUp 0.32s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-card.is-scam {
+      background: var(--scam-bg);
+      border-color: var(--scam-border);
+    }
+
+    .result-card.is-legit {
+      background: var(--legit-bg);
+      border-color: var(--legit-border);
+    }
+
+    /* Top row: icon + label + confidence */
+    .result-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .result-emoji {
+      font-size: 32px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .result-meta { flex: 1; }
+
+    .result-badge {
+      display: inline-block;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 999px;
+      color: #fff;
+      margin-bottom: 5px;
+    }
+
+    .is-scam  .result-badge { background: var(--scam-badge-bg); }
+    .is-legit .result-badge { background: var(--legit-badge-bg); }
+
+    .result-verdict {
+      font-size: 1.55rem;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.3px;
+    }
+
+    .is-scam  .result-verdict { color: var(--scam-text); }
+    .is-legit .result-verdict { color: var(--legit-text); }
+
+    .confidence-block { text-align: right; }
+
+    .confidence-num {
+      font-size: 2.1rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .is-scam  .confidence-num { color: var(--scam-text); }
+    .is-legit .confidence-num { color: var(--legit-text); }
+
+    .confidence-cap {
+      font-size: 0.67rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 3px;
+    }
+
+    /* Probability bars */
+    .prob-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .prob-row {}
+
+    .prob-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .prob-label {
+      font-size: 0.77rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .prob-val {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .track {
+      height: 6px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      border-radius: 999px;
+      width: 0%;
+      transition: width 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .fill-scam  { background: linear-gradient(90deg, #922b21, var(--scam-text)); }
+    .fill-legit { background: linear-gradient(90deg, #1a7a45, var(--legit-text)); }
+
+    /* ── Footer ─────────────────────────────────────────────────────── */
+    .page-footer {
+      margin-top: 36px;
+      text-align: center;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      line-height: 1.75;
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      .card { padding: 20px; }
+      .result-top { flex-wrap: wrap; }
+      .confidence-block { width: 100%; text-align: left; margin-top: 4px; }
+    }
+  </style>
 </head>
 <body>
-    <div class="background-blobs">
-        <div class="blob shape-1"></div>
-        <div class="blob shape-2"></div>
-        <div class="blob shape-3"></div>
+
+  <!-- ───────────────────────── Header ──────────────────────────── -->
+  <header class="page-header">
+    <div class="logo-row">
+      <div class="logo-icon">&#x1F6E1;&#xFE0F;</div>
+      <span class="logo-name">ScamDetect</span>
+    </div>
+    <p class="tagline">
+      Paste any message below and our AI model will analyse it for signs of fraud or social engineering.
+    </p>
+    <span class="sms-badge">Specialised in SMS &amp; text-message scam detection</span>
+  </header>
+
+  <!-- ───────────────────────── Card ────────────────────────────── -->
+  <main class="card">
+
+    <label class="field-label" for="msg-input">Message to analyse</label>
+    <textarea
+      id="msg-input"
+      placeholder='e.g. "Congratulations! You have been selected for a $500 reward. Tap here to claim: http://win-prize.xyz"'
+      spellcheck="false"
+    ></textarea>
+    <div class="meta-row">
+      <span class="hint">Tip: press Ctrl + Enter to submit</span>
+      <span class="char-count"><span id="char-num">0</span> chars</span>
     </div>
 
-    <div class="container">
-        <header>
-            <div class="logo">
-                <i class="fa-solid fa-shield-halved"></i>
-            </div>
-            <h1>Nexus Shield</h1>
-            <p>Advanced AI-Powered Threat Detection</p>
-        </header>
+    <button class="btn-primary" id="check-btn" type="button">
+      <div class="spinner" id="spinner"></div>
+      <span id="btn-text">Check Message</span>
+    </button>
 
-        <main>
-            <div class="scanner-card">
-                <div class="input-group">
-                    <label for="messageInput">Analyze Message or Text</label>
-                    <textarea 
-                        id="messageInput" 
-                        placeholder="Paste a suspicious SMS, email, or message here to verify its authenticity..."
-                        rows="5"
-                    ></textarea>
-                </div>
-                
-                <button id="scanBtn" class="primary-btn">
-                    <span class="btn-text">Initiate Scan</span>
-                    <i class="fa-solid fa-radar fa-spin icon-scanning hidden"></i>
-                    <i class="fa-solid fa-arrow-right icon-default"></i>
-                </button>
-            </div>
-
-            <div id="resultCard" class="result-card hidden">
-                <div class="result-header">
-                    <div class="status-icon">
-                        <i id="statusIcon" class="fa-solid fa-circle-check"></i>
-                    </div>
-                    <h2 id="statusTitle">Safe Message</h2>
-                </div>
-                
-                <div class="confidence-meter">
-                    <div class="meter-header">
-                        <span>AI Confidence Score</span>
-                        <span id="confidenceValue" class="value">98.5%</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div id="progressFill" class="progress-fill"></div>
-                    </div>
-                </div>
-
-                <div class="metrics-grid">
-                    <div class="metric">
-                        <p class="metric-label">Scam Probability</p>
-                        <p id="scamProb" class="metric-value">1.5%</p>
-                    </div>
-                    <div class="metric">
-                        <p class="metric-label">Legit Probability</p>
-                        <p id="legitProb" class="metric-value">98.5%</p>
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <footer>
-            <p>Powered by DistilBERT NLP Engine</p>
-        </footer>
+    <!-- Error -->
+    <div class="error-box" id="error-box" role="alert">
+      <b id="err-title"></b>
+      <span id="err-detail"></span>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Result -->
+    <section id="result-section" aria-live="polite">
+      <div class="divider"></div>
+
+      <div class="result-card" id="result-card">
+        <div class="result-top">
+          <div class="result-emoji" id="r-emoji"></div>
+          <div class="result-meta">
+            <div class="result-badge" id="r-badge"></div>
+            <div class="result-verdict" id="r-verdict"></div>
+          </div>
+          <div class="confidence-block">
+            <div class="confidence-num" id="r-conf"></div>
+            <div class="confidence-cap">Confidence</div>
+          </div>
+        </div>
+
+        <div class="prob-list">
+          <div class="prob-row">
+            <div class="prob-header">
+              <span class="prob-label">Scam probability</span>
+              <span class="prob-val" id="scam-pct">—</span>
+            </div>
+            <div class="track"><div class="fill fill-scam" id="scam-bar"></div></div>
+          </div>
+          <div class="prob-row">
+            <div class="prob-header">
+              <span class="prob-label">Legitimate probability</span>
+              <span class="prob-val" id="legit-pct">—</span>
+            </div>
+            <div class="track"><div class="fill fill-legit" id="legit-bar"></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ───────────────────────── Footer ──────────────────────────── -->
+  <footer class="page-footer">
+    Model predictions are probabilistic and not a guarantee.<br>
+    Always exercise caution with unexpected or unsolicited messages.
+  </footer>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SCRIPT
+  ════════════════════════════════════════════════════════════════ -->
+  <script>
+    // ─────────────────────────────────────────────────────────────────
+    // CONFIGURATION
+    //   Change API_URL to point at your running FastAPI / Flask server.
+    // ─────────────────────────────────────────────────────────────────
+    const API_URL = 'http://localhost:8000';
+    // ─────────────────────────────────────────────────────────────────
+
+    // ── Element references ──────────────────────────────────────────
+    const msgInput     = document.getElementById('msg-input');
+    const charNum      = document.getElementById('char-num');
+    const checkBtn     = document.getElementById('check-btn');
+    const btnText      = document.getElementById('btn-text');
+    const spinner      = document.getElementById('spinner');
+    const errorBox     = document.getElementById('error-box');
+    const errTitle     = document.getElementById('err-title');
+    const errDetail    = document.getElementById('err-detail');
+    const resultSec    = document.getElementById('result-section');
+    const resultCard   = document.getElementById('result-card');
+    const rEmoji       = document.getElementById('r-emoji');
+    const rBadge       = document.getElementById('r-badge');
+    const rVerdict     = document.getElementById('r-verdict');
+    const rConf        = document.getElementById('r-conf');
+    const scamPct      = document.getElementById('scam-pct');
+    const legitPct     = document.getElementById('legit-pct');
+    const scamBar      = document.getElementById('scam-bar');
+    const legitBar     = document.getElementById('legit-bar');
+
+    // ── Live character counter ──────────────────────────────────────
+    msgInput.addEventListener('input', () => {
+      charNum.textContent = msgInput.value.length;
+    });
+
+    // ── Ctrl/Cmd + Enter shortcut ───────────────────────────────────
+    msgInput.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') checkBtn.click();
+    });
+
+    // ── Helpers ─────────────────────────────────────────────────────
+    function pct(val) {
+      return (val * 100).toFixed(1) + '%';
+    }
+
+    function setLoading(on) {
+      checkBtn.disabled      = on;
+      spinner.style.display  = on ? 'block' : 'none';
+      btnText.textContent    = on ? 'Analysing…' : 'Check Message';
+    }
+
+    function showError(title, detail) {
+      errTitle.textContent  = title;
+      errDetail.textContent = detail;
+      errorBox.style.display = 'block';
+      resultSec.style.display = 'none';
+    }
+
+    function hideError() {
+      errorBox.style.display = 'none';
+    }
+
+    function renderResult(data) {
+      /*
+        Expected API response — at minimum:
+        {
+          label:      "SCAM" | "LEGITIMATE",
+          confidence: 0.97,    // 0-1 float
+          scam_prob:  0.97,    // 0-1 float  (also accepts scam_probability)
+          legit_prob: 0.03     // 0-1 float  (also accepts legit_probability)
+        }
+      */
+      const isScam = data.label.toUpperCase() === 'SCAM';
+      const sp = data.scam_prob  ?? data.scam_probability  ?? 0;
+      const lp = data.legit_prob ?? data.legit_probability ?? 0;
+
+      // Card class (drives all colours)
+      resultCard.className = 'result-card ' + (isScam ? 'is-scam' : 'is-legit');
+
+      // Top section
+      rEmoji.textContent   = isScam ? '⚠️' : '✅';
+      rBadge.textContent   = isScam ? 'Warning' : 'Safe';
+      rVerdict.textContent = isScam ? 'SCAM DETECTED' : 'LEGITIMATE';
+      rConf.textContent    = pct(data.confidence ?? (isScam ? sp : lp));
+
+      // Reset bars to 0 so the CSS transition always fires
+      scamBar.style.width  = '0%';
+      legitBar.style.width = '0%';
+
+      scamPct.textContent  = pct(sp);
+      legitPct.textContent = pct(lp);
+
+      // Show section before animating bars
+      resultSec.style.display = 'block';
+
+      // Double rAF ensures the 0% paint happens before the transition
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          scamBar.style.width  = (sp * 100).toFixed(2) + '%';
+          legitBar.style.width = (lp * 100).toFixed(2) + '%';
+        });
+      });
+    }
+
+    // ── Main click handler ──────────────────────────────────────────
+    checkBtn.addEventListener('click', async () => {
+      const text = msgInput.value.trim();
+
+      if (!text) {
+        showError(
+          'No message entered',
+          'Please paste or type a message before running the check.'
+        );
+        return;
+      }
+
+      hideError();
+      setLoading(true);
+
+      try {
+        const res = await fetch(`${API_URL}/predict`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+
+        if (!res.ok) {
+          let msg = `HTTP ${res.status} ${res.statusText}`;
+          try {
+            const body = await res.json();
+            msg = body.detail || body.message || JSON.stringify(body);
+          } catch (_) { /* use status text */ }
+          throw new Error(msg);
+        }
+
+        const data = await res.json();
+
+        if (!data.label) {
+          throw new Error(
+            'Unexpected API response — missing "label" field. Check the server is returning the correct JSON.'
+          );
+        }
+
+        renderResult(data);
+
+      } catch (err) {
+        const isFetchError =
+          err instanceof TypeError && /fetch|network|failed/i.test(err.message);
+
+        if (isFetchError) {
+          showError(
+            'Cannot reach the API server',
+            `Ensure the server is running at ${API_URL} and that CORS is enabled. (${err.message})`
+          );
+        } else {
+          showError('API error', err.message);
+        }
+      } finally {
+        setLoading(false);
+      }
+    });
+  </script>
 </body>
 </html>
